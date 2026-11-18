@@ -205,6 +205,10 @@ commands:
               - equal: [*macos_test_executor, << parameters.platform >>]
           steps:
             - run:
+                # Mostly for `timeout` which is used for mise install
+                name: Install coreutils
+                command: brew install coreutils
+            - run:
                 name: Make link to md5
                 command: |
                   mkdir -p ~/.local/aliases
@@ -225,7 +229,7 @@ commands:
                   echo 'alias find=/bin/find' >> "$BASH_ENV"
                   echo 'alias sort=/bin/sort' >> "$BASH_ENV"
                   echo 'export EXECUTABLE_SUFFIX=".exe"' >> "$BASH_ENV"
-                  echo 'export PATH="$HOME/AppData/Local/mise/shims:$HOME/scoop/apps/mise/current/bin:$HOME/scoop/shims:$PATH"' >> "$BASH_ENV"
+                  echo 'export PATH="$HOME/AppData/Local/mise/shims:$PATH"' >> "$BASH_ENV"
             - run:
                 name: Write arch
                 command: |
@@ -267,10 +271,13 @@ commands:
             - run:
                 name: Install mise
                 command: |
-                  curl https://mise.jdx.dev/install.sh | sh
+                  curl -fsSL https://mise.run | sh
                   mise activate bash >> "$BASH_ENV"
+            - run:
+                name: Install mise tools
+                command: |
                   for i in 1 2 3; do
-                    if mise install --yes --quiet; then
+                    if timeout 600 mise install --yes --verbose; then
                       break
                     fi
                     if [ $i -eq 3 ]; then
@@ -280,6 +287,10 @@ commands:
                     echo "mise install failed (attempt $i/3), retrying in $((i*5))s..."
                     sleep $((i*5))
                   done
+            - run:
+                name: Verify mise installation
+                when: always
+                command: mise doctor
       - when:
           condition:
             or:
@@ -287,27 +298,15 @@ commands:
               - equal: [*windows_test_executor, << parameters.platform >>]
           steps:
             - run:
-                name: Install scoop
-                shell: powershell.exe -ExecutionPolicy Bypass
-                command: |
-                  iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
-            - run:
                 name: Install mise
-                no_output_timeout: 20m
+                shell: powershell.exe
+                command: |
+                  irm https://mise.run/powershell | iex
+            - run:
+                name: Install mise tools
                 command: |
                   for i in 1 2 3; do
-                    if scoop install mise@${MISE_VERSION#v}; then
-                      break
-                    fi
-                    if [ $i -eq 3 ]; then
-                      echo "scoop install mise failed after 3 attempts"
-                      exit 1
-                    fi
-                    echo "scoop install mise failed (attempt $i/3), retrying in $((i*5))s..."
-                    sleep $((i*5))
-                  done
-                  for i in 1 2 3; do
-                    if mise install --yes --quiet; then
+                    if timeout 600 mise install --yes --verbose; then
                       break
                     fi
                     if [ $i -eq 3 ]; then
@@ -317,6 +316,10 @@ commands:
                     echo "mise install failed (attempt $i/3), retrying in $((i*5))s..."
                     sleep $((i*5))
                   done
+            - run:
+                name: Verify mise installation
+                when: always
+                command: mise doctor
   fetch_dependencies:
     steps:
       - run:
