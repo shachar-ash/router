@@ -1276,7 +1276,7 @@ workflows:
           matrix:
             parameters:
               platform:
-                [amd_linux_test]
+                [macos_test, windows_test, amd_linux_test, arm_linux_test]
   quick-nightly:
     when: << pipeline.parameters.quick_nightly >>
     jobs:
