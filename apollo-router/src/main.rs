@@ -1,3 +1,4 @@
+// aint it funny
 fn main() {
     match apollo_router::main() {
         Ok(_) => {}
